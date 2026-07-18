@@ -82,7 +82,7 @@ vercel env pull .env.local
 psql "$DATABASE_URL" -f neon/migrations/001_projects.sql
 ```
 
-`DATABASE_URL`, `CLERK_SECRET_KEY`, and `CLERK_JWT_KEY` are server-only values and must never use the `VITE_` prefix. The managed review path additionally uses Vercel AI Gateway and the optional `AXIOMATE_GATEWAY_MODEL` setting. Configure an AI Gateway budget before enabling it for external users.
+`DATABASE_URL`, `CLERK_SECRET_KEY`, and `CLERK_JWT_KEY` are server-only values and must never use the `VITE_` prefix. The managed review path additionally uses Vercel AI Gateway and the optional `AXIOMATE_GATEWAY_MODEL` setting; the low-cost default is `google/gemini-2.5-flash-lite`. Configure a Gateway budget before enabling it for external users.
 
 To enable web PDF compilation, create the reusable TeX snapshot once and add the printed value as `AXIOMATE_TEX_SNAPSHOT_ID` in Vercel Development, Preview, and Production:
 

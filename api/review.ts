@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import { AuthError, requireUserId } from "./_lib/auth.js";
 
@@ -15,17 +15,17 @@ const inputSchema = z.object({
 
 const outputSchema = z.object({
   suggestions: z.array(z.object({
-    id: z.string(),
+    id: z.string().max(200),
     category: z.enum(["evidence", "logic", "math", "writing", "latex"]),
     severity: z.enum(["critical", "warning", "suggestion"]),
-    title: z.string(),
-    detail: z.string(),
-    rationale: z.string(),
-    file: z.string(),
+    title: z.string().max(500),
+    detail: z.string().max(2_000),
+    rationale: z.string().max(2_000),
+    file: z.string().max(500),
     line: z.number().int().positive(),
-    original: z.string().optional(),
-    replacement: z.string().optional(),
-    related: z.array(z.string()).optional(),
+    original: z.string().max(10_000).optional(),
+    replacement: z.string().max(10_000).optional(),
+    related: z.array(z.string().max(500)).max(20).optional(),
   })).max(50),
 });
 
@@ -43,11 +43,13 @@ export default {
     try {
       const userId = await requireUserId(request);
       const input = inputSchema.parse(await request.json());
-      const model = process.env.AXIOMATE_GATEWAY_MODEL ?? "openai/gpt-5.5";
+      const model = process.env.AXIOMATE_GATEWAY_MODEL ?? "google/gemini-2.5-flash-lite";
       const result = await generateText({
         model,
         temperature: 0.1,
-        system: "You are a conservative scientific paper reviewer. Identify only evidence, logic, mathematical notation, writing, and LaTeX issues supported by the supplied source. Never invent citations, results, or definitions. Preserve LaTeX syntax. Return JSON containing a suggestions array only.",
+        maxOutputTokens: 3_000,
+        output: Output.object({ schema: outputSchema }),
+        system: "You are a conservative scientific paper reviewer. Identify only evidence, logic, mathematical notation, writing, and LaTeX issues supported by the supplied source. Never invent citations, results, or definitions. Preserve LaTeX syntax.",
         prompt: `Style profile: ${JSON.stringify(input.styleProfile)}\nFollow it without trading precision for style.\n\nFile: ${input.file}\n\n${input.content}`,
         providerOptions: {
           gateway: {
@@ -56,7 +58,7 @@ export default {
           },
         },
       });
-      const parsed = outputSchema.parse(JSON.parse(result.text));
+      const parsed = outputSchema.parse(result.output);
       return json({ suggestions: parsed.suggestions, model });
     } catch (error) {
       if (error instanceof AuthError) return json({ error: error.message }, error.status);
