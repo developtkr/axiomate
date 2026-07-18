@@ -23,6 +23,21 @@ AI provider는 OpenAI-compatible adapter로 통일하며 다음 설정을 프로
 
 로컬 검사는 항상 실행하고, 사용자가 `Run review`를 실행할 때만 현재 main `.tex` 범위를 선택한 gateway로 전송한다. 모델 결과는 schema validation과 diff 승인을 거쳐야 적용된다.
 
+### 2026-07-18 Alpha 구현 현황
+
+현재 `Axiomate` 공개 저장소와 Vercel 웹 alpha에는 다음 범위가 구현되어 있다.
+
+- CodeMirror LaTeX 편집, KaTeX semantic preview, Electron 로컬 폴더 열기/저장 및 제한된 `latexmk` 컴파일
+- evidence/logic/math/writing 로컬 검사, 승인형 patch, claim ledger와 프로젝트 symbol 검사
+- PDF.js 기반 로컬 PDF page text 추출, exact passage 선택과 claim-evidence 연결
+- question → gap → contribution → method → experiment → result → limitation → conclusion argument map
+- review/patch/compile run history와 venue/voice/English/avoid-phrase style profile
+- OpenAI/OpenRouter/custom OpenAI-compatible gateway, exact model ID와 세션 전용 LLM key
+- Yjs/WebRTC secret link 공동 편집, IndexedDB cache, presence와 remote cursor
+- GitHub Actions 검사와 Vercel 배포
+
+MVP 결정 2에 따라 사용자 계정, 조직 권한, 서버 영속 문서 저장은 alpha에 포함하지 않는다. PDF 원문도 브라우저 로컬에만 유지하며 공동 편집방으로 전송하지 않는다.
+
 ---
 
 ## 1. 요약

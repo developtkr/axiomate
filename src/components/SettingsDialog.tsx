@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { KeyRound, ShieldCheck, X } from "lucide-react";
 import type { ProviderConfig } from "../lib/aiProvider";
+import type { StyleProfile } from "../types";
 
 interface SettingsDialogProps {
   initialConfig?: ProviderConfig;
+  initialStyleProfile: StyleProfile;
   onClose: () => void;
-  onSave: (config?: ProviderConfig) => void;
+  onSave: (config: ProviderConfig | undefined, styleProfile: StyleProfile) => void;
 }
 
 const defaultConfig: ProviderConfig = {
@@ -20,8 +22,9 @@ const presets = [
   { label: "Custom", baseUrl: "", model: "" },
 ] as const;
 
-export function SettingsDialog({ initialConfig, onClose, onSave }: SettingsDialogProps) {
+export function SettingsDialog({ initialConfig, initialStyleProfile, onClose, onSave }: SettingsDialogProps) {
   const [config, setConfig] = useState(initialConfig ?? defaultConfig);
+  const [styleProfile, setStyleProfile] = useState(initialStyleProfile);
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
@@ -55,14 +58,40 @@ export function SettingsDialog({ initialConfig, onClose, onSave }: SettingsDialo
           <input type="password" value={config.apiKey} onChange={(event) => setConfig({ ...config, apiKey: event.target.value })} placeholder="sk-…" autoComplete="off" />
         </label>
         <div className="privacy-note"><ShieldCheck size={14} /><span>The key is held in memory for this session only. It is never written to the project or run history.</span></div>
+        <div className="settings-divider"><span>WRITING PROFILE</span></div>
+        <div className="style-grid">
+          <label>
+            Venue
+            <select value={styleProfile.venue} onChange={(event) => setStyleProfile({ ...styleProfile, venue: event.target.value as StyleProfile["venue"] })}>
+              <option value="generic">Generic paper</option><option value="acl">ACL</option><option value="neurips">NeurIPS</option><option value="thesis">Thesis</option>
+            </select>
+          </label>
+          <label>
+            Voice
+            <select value={styleProfile.voice} onChange={(event) => setStyleProfile({ ...styleProfile, voice: event.target.value as StyleProfile["voice"] })}>
+              <option value="concise">Concise</option><option value="balanced">Balanced</option><option value="explanatory">Explanatory</option>
+            </select>
+          </label>
+          <label>
+            English
+            <select value={styleProfile.english} onChange={(event) => setStyleProfile({ ...styleProfile, english: event.target.value as StyleProfile["english"] })}>
+              <option value="american">American</option><option value="british">British</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          Phrases to avoid <small>comma or new line separated</small>
+          <textarea value={styleProfile.avoidPhrases} onChange={(event) => setStyleProfile({ ...styleProfile, avoidPhrases: event.target.value })} placeholder="clearly, obviously" />
+        </label>
         <ol className="model-usage-steps">
           <li>Choose a gateway and enter its exact model ID.</li>
           <li>Connect, then use <strong>Run review</strong> in the co-worker panel.</li>
           <li>The current main `.tex` file is sent; every returned patch still requires approval.</li>
         </ol>
         <footer>
-          {initialConfig && <button className="disconnect-button" onClick={() => onSave(undefined)}>Disconnect</button>}
-          <button className="save-settings-button" disabled={!config.baseUrl || !config.model || !config.apiKey} onClick={() => onSave(config)}>Connect model</button>
+          {initialConfig && <button className="disconnect-button" onClick={() => onSave(undefined, styleProfile)}>Disconnect model</button>}
+          <button className="save-profile-button" onClick={() => onSave(initialConfig, styleProfile)}>Save profile</button>
+          <button className="save-settings-button" disabled={!config.baseUrl || !config.model || !config.apiKey} onClick={() => onSave(config, styleProfile)}>Connect model</button>
         </footer>
       </section>
     </div>

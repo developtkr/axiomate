@@ -1,5 +1,7 @@
 node_modules/
 dist/
+release/
+tmp/
 .vercel/
 .DS_Store
 *.log

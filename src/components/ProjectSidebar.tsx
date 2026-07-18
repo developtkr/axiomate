@@ -6,12 +6,15 @@ import {
   FileCode2,
   FileText,
   FolderOpen,
+  FilePlus2,
   Library,
   Sigma,
+  Workflow,
 } from "lucide-react";
-import type { Evidence, PaperAnalysis, PaperProject } from "../types";
+import type { Evidence, PaperAnalysis, PaperProject, ResearchSource } from "../types";
+import { ArgumentMapView } from "./ArgumentMapView";
 
-type SidebarTab = "files" | "outline" | "claims" | "sources";
+type SidebarTab = "files" | "outline" | "argument" | "claims" | "sources";
 
 interface ProjectSidebarProps {
   project: PaperProject;
@@ -19,14 +22,18 @@ interface ProjectSidebarProps {
   activeTab: SidebarTab;
   analysis: PaperAnalysis;
   evidence: Evidence[];
+  researchSources: ResearchSource[];
   onSelectFile: (path: string) => void;
   onSelectTab: (tab: SidebarTab) => void;
   onOpenProject: () => void;
+  onImportPdf: () => void;
+  onSelectSource: (source: ResearchSource) => void;
 }
 
 const tabItems = [
   { id: "files", label: "Files", icon: FolderOpen },
   { id: "outline", label: "Outline", icon: BookOpen },
+  { id: "argument", label: "Argument", icon: Workflow },
   { id: "claims", label: "Claims", icon: Braces },
   { id: "sources", label: "Sources", icon: Library },
 ] as const;
@@ -43,9 +50,12 @@ export function ProjectSidebar({
   activeTab,
   analysis,
   evidence,
+  researchSources,
   onSelectFile,
   onSelectTab,
   onOpenProject,
+  onImportPdf,
+  onSelectSource,
 }: ProjectSidebarProps) {
   return (
     <aside className="project-sidebar">
@@ -122,14 +132,25 @@ export function ProjectSidebar({
           </div>
         )}
 
+        {activeTab === "argument" && (
+          <ArgumentMapView nodes={analysis.argumentNodes} edges={analysis.argumentEdges} />
+        )}
+
         {activeTab === "sources" && (
           <div className="source-list">
+            <button className="import-source-button" onClick={onImportPdf}><FilePlus2 size={14} /> Add source PDF</button>
+            {researchSources.map((source) => (
+              <button className="imported-source-row" key={source.id} onClick={() => onSelectSource(source)}>
+                <FileText size={15} />
+                <span><strong>{source.title}</strong><small>{source.pageCount} pages · local only</small></span>
+              </button>
+            ))}
             {evidence.map((source) => (
               <article key={source.id}>
                 <FileText size={15} />
                 <div>
                   <strong>{source.title}</strong>
-                  <span>{source.authors} · {source.year}</span>
+                  <span>{source.authors}{source.year ? ` · ${source.year}` : ""}</span>
                   <p>{source.passage}</p>
                   {source.page && <small>PAGE {source.page}</small>}
                 </div>

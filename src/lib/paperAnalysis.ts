@@ -1,4 +1,5 @@
-import type { Claim, Evidence, PaperAnalysis, Suggestion } from "../types";
+import type { Claim, Evidence, PaperAnalysis, StyleProfile, Suggestion } from "../types";
+import { buildArgumentMap } from "./argumentMap";
 
 const sentenceSplit = /(?<=[.!?])\s+(?=[A-Z])/g;
 const sectionPattern = /\\(sub)*section\{([^}]+)\}/g;
@@ -13,6 +14,8 @@ function lineAt(content: string, offset: number): number {
 function stripLatex(value: string): string {
   return value
     .replace(/%.*$/gm, "")
+    .replace(/\\(?:documentclass|usepackage|title|author)(?:\[[^\]]*\])?\{[^}]*\}/g, " ")
+    .replace(/\\maketitle/g, " ")
     .replace(/\\begin\{[^}]+\}|\\end\{[^}]+\}/g, " ")
     .replace(/\\(?:section|subsection|caption|label|bibliography|bibliographystyle)\{[^}]*\}/g, " ")
     .replace(/\$[^$]+\$/g, " [equation] ")
@@ -30,7 +33,7 @@ function claimStatus(sentence: string, citation: string | undefined): Claim["sta
   return "unsupported";
 }
 
-export function analyzePaper(content: string, file: string, evidence: Evidence[]): PaperAnalysis {
+export function analyzePaper(content: string, file: string, evidence: Evidence[], styleProfile?: StyleProfile): PaperAnalysis {
   const sections = Array.from(content.matchAll(sectionPattern)).map((match) => ({
     title: match[2],
     level: match[1] ? 2 : 1,
@@ -48,17 +51,19 @@ export function analyzePaper(content: string, file: string, evidence: Evidence[]
   const claims: Claim[] = textBlocks
     .filter((sentence) => sentence.length > 35 && !/^where\b/i.test(sentence))
     .map((sentence, index) => {
+      const id = `claim-${index + 1}`;
       const rawCitation = sentence.match(citationPattern)?.[1];
       const citation = rawCitation?.split(",")[0];
+      const linkedEvidence = evidence.find((item) => item.claimId === id);
       const location = content.indexOf(sentence.slice(0, Math.min(30, sentence.length)));
       return {
-        id: `claim-${index + 1}`,
+        id,
         text: sentence.replace(citationPattern, "").trim(),
         file,
         line: location >= 0 ? lineAt(content, location) : 1,
-        status: claimStatus(sentence, citation),
+        status: linkedEvidence ? "supported" : claimStatus(sentence, citation),
         citation,
-        evidenceId: citation ? evidence.find((item) => item.citeKey === citation)?.id : undefined,
+        evidenceId: linkedEvidence?.id ?? (citation ? evidence.find((item) => item.citeKey === citation)?.id : undefined),
       };
     });
 
@@ -145,6 +150,25 @@ export function analyzePaper(content: string, file: string, evidence: Evidence[]
     });
   }
 
+  const avoidedPhrases = styleProfile?.avoidPhrases
+    .split(/[,\n]/)
+    .map((phrase) => phrase.trim())
+    .filter(Boolean) ?? [];
+  const avoidedPhrase = avoidedPhrases.find((phrase) => content.toLowerCase().includes(phrase.toLowerCase()));
+  if (avoidedPhrase) {
+    const offset = content.toLowerCase().indexOf(avoidedPhrase.toLowerCase());
+    suggestions.push({
+      id: `writing-style-${avoidedPhrase.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      category: "writing",
+      severity: "suggestion",
+      title: "Phrase conflicts with the active style profile",
+      detail: `“${avoidedPhrase}” is listed under phrases to avoid for this project.`,
+      rationale: `The active ${styleProfile?.venue ?? "generic"} profile keeps project-wide writing choices consistent.`,
+      file,
+      line: lineAt(content, offset),
+    });
+  }
+
   const symbolCounts = new Map<string, { count: number; firstLine: number }>();
   for (const equation of content.matchAll(equationPattern)) {
     const equationText = equation[1];
@@ -169,12 +193,15 @@ export function analyzePaper(content: string, file: string, evidence: Evidence[]
   const critical = suggestions.filter((item) => item.severity === "critical").length;
   const mathIssues = suggestions.filter((item) => item.category === "math").length;
   const writingIssues = suggestions.filter((item) => item.category === "writing").length;
+  const argument = buildArgumentMap(content);
 
   return {
     claims,
     suggestions,
     sections,
     symbols,
+    argumentNodes: argument.nodes,
+    argumentEdges: argument.edges,
     score: {
       evidence: Math.max(0, evidenceScore),
       logic: Math.max(0, 100 - critical * 24),

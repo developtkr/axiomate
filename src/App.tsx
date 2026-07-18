@@ -24,17 +24,25 @@ import { PaperPreview } from "./components/PaperPreview";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { ScoreStrip } from "./components/ScoreStrip";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { SourceInspector } from "./components/SourceInspector";
 import { sampleEvidence, sampleProject } from "./data/sampleProject";
 import { useCollaboration } from "./hooks/useCollaboration";
 import { requestModelReview, type ProviderConfig } from "./lib/aiProvider";
+import { extractPdfSource } from "./lib/pdfSource";
 import { analyzePaper, applySuggestion } from "./lib/paperAnalysis";
-import type { PaperProject, ProjectFile, Suggestion } from "./types";
+import type { Evidence, PaperProject, ProjectFile, ResearchSource, ReviewRun, StyleProfile, Suggestion } from "./types";
 
 type WorkspaceView = "source" | "split" | "preview";
-type SidebarTab = "files" | "outline" | "claims" | "sources";
+type SidebarTab = "files" | "outline" | "argument" | "claims" | "sources";
 
 const githubUrl = "https://github.com/developtkr/axiomate";
 const collaborationColors = ["#83d6b6", "#d9ad66", "#76a9d8", "#c99ad6", "#d87373"];
+const defaultStyleProfile: StyleProfile = {
+  venue: "generic",
+  voice: "balanced",
+  english: "american",
+  avoidPhrases: "clearly, obviously",
+};
 
 function fileType(path: string): ProjectFile["type"] {
   if (path.endsWith(".tex")) return "tex";
@@ -59,17 +67,23 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [providerConfig, setProviderConfig] = useState<ProviderConfig>();
   const [modelSuggestions, setModelSuggestions] = useState<Suggestion[]>([]);
+  const [reviewRuns, setReviewRuns] = useState<ReviewRun[]>([]);
+  const [styleProfile, setStyleProfile] = useState<StyleProfile>(defaultStyleProfile);
+  const [evidence, setEvidence] = useState<Evidence[]>(sampleEvidence);
+  const [researchSources, setResearchSources] = useState<ResearchSource[]>([]);
+  const [selectedSource, setSelectedSource] = useState<ResearchSource>();
   const [collaborationRoom, setCollaborationRoom] = useState(() => {
     const roomId = new URLSearchParams(window.location.search).get("room");
     return roomId ? { id: roomId, isHost: false } : undefined;
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sourceInputRef = useRef<HTMLInputElement>(null);
 
   const currentFile = project.files.find((file) => file.path === activeFile) ?? project.files[0];
   const mainFile = project.files.find((file) => file.path === project.mainFile) ?? currentFile;
   const analysis = useMemo(
-    () => analyzePaper(mainFile?.content ?? "", mainFile?.path ?? "main.tex", sampleEvidence),
-    [mainFile?.content, mainFile?.path],
+    () => analyzePaper(mainFile?.content ?? "", mainFile?.path ?? "main.tex", evidence, styleProfile),
+    [evidence, mainFile?.content, mainFile?.path, styleProfile],
   );
   const suggestions = [...analysis.suggestions, ...modelSuggestions].filter((suggestion) => !dismissed.includes(suggestion.id));
   const collaborationUser = useMemo(() => {
@@ -90,6 +104,10 @@ export function App() {
     user: collaborationUser,
     onTextChange: syncCollaborativeText,
   });
+
+  function recordRun(run: Omit<ReviewRun, "id" | "createdAt">) {
+    setReviewRuns((previous) => [{ ...run, id: crypto.randomUUID(), createdAt: new Date().toISOString() }, ...previous].slice(0, 30));
+  }
 
   function updateCurrentFile(content: string) {
     setProject((previous) => ({
@@ -137,6 +155,43 @@ export function App() {
     setToast(`Imported ${imported.length} files · Browser-local session`);
   }
 
+  async function importSourcePdfs(files: FileList | null) {
+    if (!files?.length) return;
+    setToast(`Reading ${files.length} PDF${files.length === 1 ? "" : "s"} locally…`);
+    const imported: ResearchSource[] = [];
+    for (const file of [...files]) {
+      try {
+        imported.push(await extractPdfSource(file));
+      } catch (error) {
+        setToast(error instanceof Error ? error.message : `Could not read ${file.name}`);
+      }
+    }
+    if (imported.length) {
+      setResearchSources((previous) => [...previous, ...imported]);
+      setSelectedSource(imported[0]);
+      setSidebarTab("sources");
+      setToast(`Indexed ${imported.length} PDF source${imported.length === 1 ? "" : "s"} locally · nothing uploaded`);
+    }
+    if (sourceInputRef.current) sourceInputRef.current.value = "";
+  }
+
+  function attachPassage(claimId: string, pageNumber: number, passage: string) {
+    if (!selectedSource) return;
+    const linked: Evidence = {
+      id: `evidence-${crypto.randomUUID()}`,
+      sourceId: selectedSource.id,
+      claimId,
+      citeKey: `source:${selectedSource.fileName}`,
+      title: selectedSource.title,
+      authors: selectedSource.authors ?? "Imported source",
+      year: selectedSource.year,
+      page: pageNumber,
+      passage,
+    };
+    setEvidence((previous) => [...previous.filter((item) => item.claimId !== claimId), linked]);
+    setToast(`Attached page ${pageNumber} as evidence · claim status updated`);
+  }
+
   async function saveFile() {
     if (!currentFile) return;
     if (!window.axiomate || !project.rootPath) {
@@ -173,13 +228,16 @@ export function App() {
         setPdfDataUrl(result.pdfDataUrl);
         setView("preview");
         setToast("PDF compiled with shell escape disabled");
+        recordRun({ kind: "compile", label: "Desktop PDF compile", provider: "latexmk sandbox", findingCount: 0, status: "passed" });
       } else {
         setToast(`Compile failed · ${result.log.split("\n").find(Boolean) ?? "See log"}`);
+        recordRun({ kind: "compile", label: "Desktop PDF compile", provider: "latexmk sandbox", findingCount: 1, status: "failed" });
       }
     } else {
       await new Promise((resolve) => window.setTimeout(resolve, 650));
       setView("preview");
       setToast("Semantic preview refreshed · Desktop app compiles full PDF");
+      recordRun({ kind: "compile", label: "Semantic preview", provider: "browser-local", findingCount: 0, status: "passed" });
     }
     setIsCompiling(false);
   }
@@ -196,18 +254,21 @@ export function App() {
     setDismissed((previous) => [...previous, suggestion.id]);
     setPdfDataUrl(undefined);
     setToast(`Applied verified patch · ${suggestion.title}`);
+    recordRun({ kind: "patch", label: suggestion.title, provider: suggestion.id.startsWith("model-") ? "model suggestion" : "local analysis", findingCount: 1, status: "passed" });
   }
 
   async function runReview() {
     setIsReviewing(true);
     if (providerConfig && mainFile) {
       try {
-        const remoteSuggestions = await requestModelReview(providerConfig, mainFile.path, mainFile.content);
+        const remoteSuggestions = await requestModelReview(providerConfig, mainFile.path, mainFile.content, styleProfile);
         setModelSuggestions(remoteSuggestions.map((suggestion) => ({ ...suggestion, id: `model-${suggestion.id}` })));
         setDismissed([]);
         setToast(`Model review complete · ${remoteSuggestions.length} additional findings validated against the current source`);
+        recordRun({ kind: "model-review", label: "Semantic model review", provider: providerConfig.model, findingCount: remoteSuggestions.length, status: remoteSuggestions.length ? "findings" : "passed" });
       } catch (error) {
         setToast(error instanceof Error ? error.message : "Model review failed");
+        recordRun({ kind: "model-review", label: "Semantic model review", provider: providerConfig.model, findingCount: 0, status: "failed" });
       } finally {
         setIsReviewing(false);
       }
@@ -217,6 +278,7 @@ export function App() {
       setDismissed([]);
       setIsReviewing(false);
       setToast(`Review complete · ${analysis.suggestions.length} findings across evidence, logic, math, and writing`);
+      recordRun({ kind: "local-review", label: "Deterministic paper review", provider: "browser-local", findingCount: analysis.suggestions.length, status: analysis.suggestions.length ? "findings" : "passed" });
     }, 900);
   }
 
@@ -225,6 +287,10 @@ export function App() {
     setActiveFile(sampleProject.mainFile);
     setDismissed([]);
     setPdfDataUrl(undefined);
+    setEvidence(sampleEvidence);
+    setResearchSources([]);
+    setSelectedSource(undefined);
+    setReviewRuns([]);
     setToast("Demo project reset");
   }
 
@@ -236,6 +302,14 @@ export function App() {
         type="file"
         multiple
         onChange={(event) => void importBrowserFiles(event.target.files)}
+      />
+      <input
+        className="visually-hidden"
+        ref={sourceInputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        multiple
+        onChange={(event) => void importSourcePdfs(event.target.files)}
       />
 
       <header className="topbar">
@@ -270,10 +344,13 @@ export function App() {
           activeFile={activeFile}
           activeTab={sidebarTab}
           analysis={analysis}
-          evidence={sampleEvidence}
+          evidence={evidence}
+          researchSources={researchSources}
           onSelectFile={setActiveFile}
           onSelectTab={setSidebarTab}
           onOpenProject={() => void openProject()}
+          onImportPdf={() => sourceInputRef.current?.click()}
+          onSelectSource={setSelectedSource}
         />
 
         <section className="center-workspace">
@@ -309,18 +386,30 @@ export function App() {
           onRunReview={() => void runReview()}
           isReviewing={isReviewing}
           providerLabel={providerConfig ? providerConfig.model : "Local analysis"}
+          runs={reviewRuns}
         />
       </main>
 
       {settingsOpen && (
         <SettingsDialog
           initialConfig={providerConfig}
+          initialStyleProfile={styleProfile}
           onClose={() => setSettingsOpen(false)}
-          onSave={(config) => {
+          onSave={(config, nextStyleProfile) => {
             setProviderConfig(config);
+            setStyleProfile(nextStyleProfile);
             setSettingsOpen(false);
-            setToast(config ? `Connected ${config.model} · Key held in memory only` : "Model disconnected · Local analysis mode");
+            setToast(config ? `Connected ${config.model} · ${nextStyleProfile.venue.toUpperCase()} profile active` : `${nextStyleProfile.venue.toUpperCase()} profile saved · Local analysis mode`);
           }}
+        />
+      )}
+
+      {selectedSource && (
+        <SourceInspector
+          source={selectedSource}
+          claims={analysis.claims}
+          onAttach={attachPassage}
+          onClose={() => setSelectedSource(undefined)}
         />
       )}
 

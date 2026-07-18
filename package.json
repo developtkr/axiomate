@@ -2,6 +2,7 @@
   "name": "axiomate",
   "version": "0.1.0",
   "private": true,
+  "author": "developtkr",
   "description": "An evidence-aware, math-native research IDE for LaTeX papers.",
   "type": "module",
   "main": "electron/main.cjs",
@@ -13,7 +14,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "desktop": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "desktop:prod": "npm run build && electron ."
+    "desktop:prod": "npm run build && electron .",
+    "desktop:package": "npm run build && electron-builder --mac dmg zip --publish never"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",
@@ -27,6 +29,7 @@
     "clsx": "^2.1.1",
     "katex": "^0.16.22",
     "lucide-react": "^0.468.0",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "y-codemirror.next": "^0.3.5",
@@ -46,6 +49,7 @@
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",
     "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.30.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -58,5 +62,26 @@
   },
   "engines": {
     "node": "22.x"
+  },
+  "build": {
+    "appId": "dev.axiomate.app",
+    "productName": "Axiomate",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   }
 }

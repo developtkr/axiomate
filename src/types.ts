@@ -22,12 +22,72 @@ export interface PaperProject {
 
 export interface Evidence {
   id: string;
+  sourceId?: string;
+  claimId?: string;
   citeKey: string;
   title: string;
   authors: string;
-  year: number;
+  year?: number;
   page?: number;
   passage: string;
+}
+
+export interface PdfPageText {
+  pageNumber: number;
+  text: string;
+}
+
+export interface ResearchSource {
+  id: string;
+  fileName: string;
+  title: string;
+  authors?: string;
+  year?: number;
+  pageCount: number;
+  size: number;
+  pages: PdfPageText[];
+}
+
+export type ArgumentNodeType =
+  | "question"
+  | "gap"
+  | "contribution"
+  | "method"
+  | "experiment"
+  | "result"
+  | "limitation"
+  | "conclusion";
+
+export interface ArgumentNode {
+  id: string;
+  type: ArgumentNodeType;
+  label: string;
+  detail: string;
+  line: number;
+  status: "connected" | "warning" | "missing";
+}
+
+export interface ArgumentEdge {
+  from: string;
+  to: string;
+  relation: "motivates" | "addresses" | "tests" | "supports" | "qualifies" | "summarizes";
+}
+
+export interface ReviewRun {
+  id: string;
+  createdAt: string;
+  kind: "local-review" | "model-review" | "patch" | "compile";
+  label: string;
+  provider: string;
+  findingCount: number;
+  status: "passed" | "findings" | "failed";
+}
+
+export interface StyleProfile {
+  venue: "generic" | "acl" | "neurips" | "thesis";
+  voice: "concise" | "balanced" | "explanatory";
+  english: "american" | "british";
+  avoidPhrases: string;
 }
 
 export interface Claim {
@@ -66,6 +126,8 @@ export interface PaperAnalysis {
   suggestions: Suggestion[];
   sections: Array<{ title: string; level: number; line: number }>;
   symbols: Array<{ symbol: string; count: number; firstLine: number }>;
+  argumentNodes: ArgumentNode[];
+  argumentEdges: ArgumentEdge[];
   score: {
     evidence: number;
     logic: number;

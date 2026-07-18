@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Suggestion } from "../types";
+import type { StyleProfile, Suggestion } from "../types";
 
 export interface ProviderConfig {
   baseUrl: string;
@@ -27,6 +27,7 @@ export async function requestModelReview(
   config: ProviderConfig,
   file: string,
   content: string,
+  styleProfile?: StyleProfile,
   signal?: AbortSignal,
 ): Promise<Suggestion[]> {
   const isOpenRouter = config.baseUrl.includes("openrouter.ai");
@@ -52,7 +53,12 @@ export async function requestModelReview(
         },
         {
           role: "user",
-          content: `File: ${file}\n\n${content}`,
+          content: `Style profile: ${JSON.stringify(styleProfile ?? {
+            venue: "generic",
+            voice: "balanced",
+            english: "american",
+            avoidPhrases: "",
+          })}\nFollow the profile, but do not trade precision for style.\n\nFile: ${file}\n\n${content}`,
         },
       ],
     }),

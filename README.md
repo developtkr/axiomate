@@ -8,17 +8,21 @@ Axiomate is an open-source, local-first research IDE for LaTeX papers. It review
 
 **Live alpha:** <https://axiomate-delta.vercel.app>
 
+**Desktop alpha:** <https://github.com/developtkr/axiomate/releases/latest>
+
 ## Why Axiomate
 
 AI can make scientific prose fluent without making it true. Axiomate is designed around a stricter rule: an unverified claim must never look verified.
 
 - **Claim Ledger** connects factual claims to source passages or project results.
-- **Argument review** finds contributions that are not evaluated and conclusions that exceed the evidence.
+- **Local PDF evidence** extracts page-aware passages in the browser and links an exact passage to a claim without uploading the PDF.
+- **Argument map** exposes missing research questions, gaps, contributions, methods, experiments, results, limitations, and conclusions.
 - **Mathematical co-worker** tracks symbols and proactively flags notation, definition, sign, and equation–text mismatches.
 - **Verified patches** show the reason, affected locations, and exact diff before changing LaTeX.
 - **Local-first workspace** keeps `.tex`, `.bib`, figures, and Git as the source of truth.
 - **Live collaboration** syncs CodeMirror edits and collaborator presence through an encrypted Yjs/WebRTC room link.
 - **Bring your own model** supports OpenAI, OpenRouter, and custom OpenAI-compatible gateways.
+- **Inspectable AI** records review, patch, and compile runs without storing the LLM key, and applies project writing profiles to local and model review.
 
 ## Alpha demo
 
@@ -29,8 +33,11 @@ The deployed web app opens a complete sample paper and runs deterministic analys
 3. filter evidence, logic, math, and writing findings;
 4. apply a scoped patch and see the paper update;
 5. import your own text-based LaTeX project for the browser session;
-6. optionally connect an OpenAI-compatible model for a second-pass review.
-7. copy a live editing link and co-edit the main LaTeX file from another browser.
+6. add a text-based source PDF, inspect page passages, and attach one to a claim;
+7. inspect the paper-wide argument map and review run history;
+8. configure a venue, voice, English variant, and phrases to avoid;
+9. optionally connect an OpenAI-compatible model for a second-pass review;
+10. copy a live editing link and co-edit the main LaTeX file from another browser.
 
 The desktop runtime additionally opens and saves local folders and compiles a full PDF with `latexmk` while shell escape is disabled.
 
@@ -41,7 +48,11 @@ The desktop runtime additionally opens and saves local folders and compiles a fu
 3. Enter the gateway host, exact model ID, and LLM key.
 4. Select **Connect model**, then run **Run review** in the co-worker panel.
 
-OpenRouter model IDs such as `openai/...`, `anthropic/...`, and `google/...` are passed through unchanged. The current main `.tex` file is sent only when you explicitly run a model review. The key remains in memory for the current session and is never committed or written to the paper project.
+OpenRouter model IDs such as `openai/...`, `anthropic/...`, and `google/...` are passed through unchanged. The current main `.tex` file and active writing profile are sent only when you explicitly run a model review. Imported source PDFs stay local and are not included in that request. The key remains in memory for the current session and is never committed or written to the paper project.
+
+### Attach local PDF evidence
+
+Open **Sources**, select **Add source PDF**, and choose a text-based PDF. Axiomate extracts page text in the browser, lets you select a claim and exact passage, and updates that claim's evidence status. The PDF bytes and extracted text are not uploaded or shared with collaborators in the alpha.
 
 ### Share and co-edit
 
@@ -51,7 +62,7 @@ Select **Share** to create and copy a secret room link. Opening the link in anot
 
 Requirements:
 
-- Node.js 20 or newer
+- Node.js 22
 - npm 10 or newer
 - `latexmk` plus a TeX distribution for desktop PDF compilation
 
@@ -68,6 +79,14 @@ Open the desktop runtime:
 npm run desktop
 ```
 
+Create unsigned macOS alpha artifacts locally:
+
+```bash
+npm run desktop:package
+```
+
+The generated DMG and ZIP are written to `release/`. Because alpha builds are not notarized, macOS may require an explicit user approval to open them.
+
 Build and test:
 
 ```bash
@@ -80,6 +99,7 @@ npm run build
 
 - Model keys entered in the app are held in memory for the current session only.
 - Deterministic checks run locally.
+- Source PDFs are parsed locally and are not sent to the configured model gateway.
 - The desktop compiler disables shell escape and limits compile time.
 - File reads and writes are constrained to the selected project root.
 - Model suggestions are untrusted until schema validation and user approval.
@@ -95,7 +115,8 @@ LaTeX project
    │
    ├── Paper model ── sections, claims, citations, equations, symbols
    │
-   ├── Local checks ─ evidence, argument, math, writing
+   ├── Local checks ─ evidence, argument map, math, writing profile
+   ├── PDF.js sources ─ page text → passage → claim link
    ├── Yjs workspace ─ offline cache, presence, live editing
    │
    ├── Optional model review ─ OpenAI-compatible endpoint
@@ -103,16 +124,16 @@ LaTeX project
    └── Verified patch ─ diff → user approval → compile
 ```
 
-The web app is built with React, TypeScript, CodeMirror 6, Yjs, WebRTC, KaTeX, and Vite. The desktop shell uses Electron with a context-isolated preload bridge.
+The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, KaTeX, and Vite. The desktop shell uses Electron with a context-isolated preload bridge.
 
 ## Current alpha limitations
 
 - The LaTeX parser is intentionally conservative and does not cover every macro package.
 - The web preview is semantic HTML/KaTeX, not a complete TeX engine.
-- Citation entailment in the sample is based on registered evidence passages; PDF ingestion is planned next.
+- PDF import currently supports text-based PDFs; scanned documents require OCR before import.
+- Passage attachment records provenance but does not yet perform automatic semantic entailment grading.
 - Symbolic equivalence and numerical sanity checks are not yet formal proof systems.
-- Account-based team roles and cloud project storage are deliberately out of the alpha scope.
-- The alpha supports link-based live editing, but not account-based team roles or server-side document retention yet.
+- Account-based team roles, server-side document retention, and shared PDF storage are deliberately out of the alpha scope; the room link is the alpha access secret.
 
 The detailed product and implementation plan is available in [`outputs/AI_NATIVE_RESEARCH_IDE_DEVELOPMENT_PLAN.md`](outputs/AI_NATIVE_RESEARCH_IDE_DEVELOPMENT_PLAN.md).
 

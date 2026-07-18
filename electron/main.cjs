@@ -72,7 +72,7 @@ function runLatexmk(rootPath, mainFile) {
       env: {
         PATH: process.env.PATH,
         LANG: process.env.LANG ?? "en_US.UTF-8",
-        HOME: app.getPath("userData"),
+        TEXMFHOME: app.getPath("userData"),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });

@@ -29,7 +29,12 @@ describe("requestModelReview", () => {
       baseUrl: "https://openrouter.ai/api/v1/",
       apiKey: "test-key",
       model: "anthropic/claude-sonnet-4",
-    }, "main.tex", "\\section{Conclusion} Broad claim.");
+    }, "main.tex", "\\section{Conclusion} Broad claim.", {
+      venue: "neurips",
+      voice: "concise",
+      english: "american",
+      avoidPhrases: "clearly",
+    });
 
     expect(suggestions).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -42,7 +47,9 @@ describe("requestModelReview", () => {
       }),
     );
     const request = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(request.body)).model).toBe("anthropic/claude-sonnet-4");
+    const body = JSON.parse(String(request.body));
+    expect(body.model).toBe("anthropic/claude-sonnet-4");
+    expect(body.messages[1].content).toContain('"venue":"neurips"');
   });
 
   it("rejects malformed model output instead of trusting it", async () => {

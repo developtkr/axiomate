@@ -7,13 +7,14 @@ import {
   ChevronDown,
   CircleAlert,
   Lightbulb,
+  History,
   MessageSquareText,
   SearchCheck,
   Sigma,
   Sparkles,
   X,
 } from "lucide-react";
-import type { Suggestion, SuggestionCategory } from "../types";
+import type { ReviewRun, Suggestion, SuggestionCategory } from "../types";
 
 interface CoWorkerPanelProps {
   suggestions: Suggestion[];
@@ -22,6 +23,7 @@ interface CoWorkerPanelProps {
   onRunReview: () => void;
   isReviewing: boolean;
   providerLabel: string;
+  runs: ReviewRun[];
 }
 
 const categoryIcons: Record<SuggestionCategory, typeof Sigma> = {
@@ -32,8 +34,8 @@ const categoryIcons: Record<SuggestionCategory, typeof Sigma> = {
   latex: AlertTriangle,
 };
 
-export function CoWorkerPanel({ suggestions, onApply, onDismiss, onRunReview, isReviewing, providerLabel }: CoWorkerPanelProps) {
-  const [filter, setFilter] = useState<"all" | SuggestionCategory>("all");
+export function CoWorkerPanel({ suggestions, onApply, onDismiss, onRunReview, isReviewing, providerLabel, runs }: CoWorkerPanelProps) {
+  const [filter, setFilter] = useState<"all" | "history" | SuggestionCategory>("all");
   const visible = filter === "all" ? suggestions : suggestions.filter((item) => item.category === filter);
 
   return (
@@ -58,23 +60,33 @@ export function CoWorkerPanel({ suggestions, onApply, onDismiss, onRunReview, is
       </section>
 
       <div className="filter-row" role="tablist" aria-label="Suggestion filters">
-        {(["all", "math", "evidence", "logic", "writing"] as const).map((item) => (
+        {(["all", "math", "evidence", "logic", "writing", "history"] as const).map((item) => (
           <button
             className={filter === item ? "active" : ""}
             key={item}
             onClick={() => setFilter(item)}
             role="tab"
           >
-            {item === "all" ? `All ${suggestions.length}` : item}
+            {item === "all" ? `All ${suggestions.length}` : item === "history" ? `History ${runs.length}` : item}
           </button>
         ))}
       </div>
 
       <div className="suggestion-list">
-        {visible.length === 0 && (
+        {filter === "history" && runs.length === 0 && (
+          <div className="empty-state"><History size={22} /><strong>No review runs yet</strong><p>Run a review, apply a patch, or compile.</p></div>
+        )}
+        {filter === "history" && runs.map((run) => (
+          <article className={`run-card run-${run.status}`} key={run.id}>
+            <div><History size={13} /><strong>{run.label}</strong><span>{new Date(run.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
+            <p>{run.provider} · {run.findingCount} finding{run.findingCount === 1 ? "" : "s"}</p>
+            <small>{run.status}</small>
+          </article>
+        ))}
+        {filter !== "history" && visible.length === 0 && (
           <div className="empty-state"><Check size={22} /><strong>No open suggestions</strong><p>This view is clear.</p></div>
         )}
-        {visible.map((suggestion) => {
+        {filter !== "history" && visible.map((suggestion) => {
           const Icon = categoryIcons[suggestion.category];
           return (
             <article className={`suggestion-card severity-${suggestion.severity}`} key={suggestion.id}>

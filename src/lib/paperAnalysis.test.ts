@@ -14,6 +14,7 @@ describe("analyzePaper", () => {
       "Conclusion",
     ]);
     expect(result.claims.length).toBeGreaterThan(3);
+    expect(result.claims.some((claim) => claim.text.includes("documentclass"))).toBe(false);
     expect(result.symbols.length).toBeGreaterThan(3);
     expect(result.score.evidence).toBeGreaterThanOrEqual(0);
     expect(result.score.logic).toBeLessThan(100);
@@ -32,6 +33,16 @@ describe("analyzePaper", () => {
     const cited = result.claims.find((claim) => claim.citation === "lee2025grounded");
     expect(cited?.status).toBe("supported");
     expect(cited?.evidenceId).toBe("ev-grounded-1");
+  });
+
+  it("enforces project-specific phrases without rewriting automatically", () => {
+    const result = analyzePaper(main.content, main.path, sampleEvidence, {
+      venue: "acl",
+      voice: "concise",
+      english: "american",
+      avoidPhrases: "scientific writing",
+    });
+    expect(result.suggestions.some((suggestion) => suggestion.id.startsWith("writing-style-"))).toBe(true);
   });
 });
 
