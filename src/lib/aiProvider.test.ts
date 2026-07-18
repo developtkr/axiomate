@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestModelReview } from "./aiProvider";
+import { requestManagedReview, requestModelReview } from "./aiProvider";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -62,5 +62,35 @@ describe("requestModelReview", () => {
       apiKey: "test-key",
       model: "test-model",
     }, "main.tex", "paper" )).rejects.toThrow();
+  });
+
+  it("sends an authenticated managed review without exposing a provider key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      model: "openai/gpt-5.5",
+      suggestions: [{
+        id: "math-1",
+        category: "math",
+        severity: "suggestion",
+        title: "Define the symbol",
+        detail: "The symbol is used before its definition.",
+        rationale: "Readers cannot resolve the notation locally.",
+        file: "main.tex",
+        line: 8,
+      }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await requestManagedReview("session-token", "main.tex", "x = 1", {
+      venue: "generic",
+      voice: "balanced",
+      english: "american",
+      avoidPhrases: "obviously",
+    });
+
+    expect(result.model).toBe("openai/gpt-5.5");
+    expect(result.suggestions).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/review", expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer session-token" }),
+    }));
   });
 });

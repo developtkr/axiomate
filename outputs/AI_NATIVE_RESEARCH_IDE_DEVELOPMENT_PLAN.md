@@ -1,6 +1,6 @@
 # AI-Native Research IDE 개발 계획서
 
-> 문서 상태: Draft v1.0  
+> 문서 상태: Draft v1.1
 > 작성일: 2026-07-18  
 > 목표: LaTeX 기반 논문 작성 과정에서 주장, 근거, 논리 구조, 문체와 재현성을 함께 관리하는 오픈소스 연구 IDE를 구축한다.
 
@@ -35,8 +35,10 @@ AI provider는 OpenAI-compatible adapter로 통일하며 다음 설정을 프로
 - OpenAI/OpenRouter/custom OpenAI-compatible gateway, exact model ID와 세션 전용 LLM key
 - Yjs/WebRTC secret link 공동 편집, IndexedDB cache, presence와 remote cursor
 - GitHub Actions 검사와 Vercel 배포
+- Supabase Marketplace 이메일 로그인, RLS로 격리된 개인 LaTeX 프로젝트 수동 스냅샷
+- 인증된 Vercel Function과 AI Gateway를 통한 managed review, Vercel Analytics와 Speed Insights
 
-MVP 결정 2에 따라 사용자 계정, 조직 권한, 서버 영속 문서 저장은 alpha에 포함하지 않는다. PDF 원문도 브라우저 로컬에만 유지하며 공동 편집방으로 전송하지 않는다.
+서비스 승격 범위에는 개인 계정과 명시적 클라우드 스냅샷만 얇게 추가한다. 조직 권한과 서버 영속 공동 편집은 여전히 제외한다. PDF 원문도 브라우저 로컬에만 유지하며 클라우드나 공동 편집방으로 전송하지 않는다.
 
 ---
 
@@ -56,7 +58,7 @@ MVP 결정 2에 따라 사용자 계정, 조직 권한, 서버 영속 문서 저
 
 > **논문의 주장·근거·논리·문체를 함께 검사하고 수정하는 오픈소스 Research IDE**
 
-첫 공개 버전은 계정·팀 권한·클라우드 저장 시스템보다 다음 다섯 기능과 링크 기반 공동 편집에 집중한다.
+첫 공개 버전은 다음 다섯 기능과 링크 기반 공동 편집에 집중한다. 로그인과 클라우드 저장은 핵심 작업 흐름을 대체하지 않는 선택형 개인 스냅샷으로 제한한다.
 
 - Claim Ledger: 주장과 근거 추적
 - Argument Map: 논증 구조 관리
@@ -1230,11 +1232,13 @@ examples/
 - 입력을 방해하지 않는 선제적 math suggestion inbox
 - OpenAI-compatible API 설정
 - Yjs 기반 secret link 공동 편집, presence와 remote cursor
+- 선택형 이메일 로그인과 사용자 소유 프로젝트 수동 스냅샷
+- 인증된 Vercel AI Gateway review와 기본 운영 지표
 
 ### 명시적으로 제외
 
-- 사용자 계정과 조직 관리
-- 서버 기반 클라우드 프로젝트 영속화
+- 조직·팀 관리
+- 자동 동기화 및 서버 기반 공동 편집 영속화
 - 세분화된 owner/editor/commenter/viewer 권한
 - 모바일 앱
 - WYSIWYG editor
@@ -1480,7 +1484,7 @@ GitHub star 수를 핵심 제품 품질 지표로 사용하지 않는다.
 |---|---|---|
 | Citation entailment가 불안정 | 잘못된 신뢰 제공 | 상태+근거 passage 표시, abstention, 평가 세트 운영 |
 | LaTeX 문법 다양성 | 파싱과 patch 실패 | 원문 보존형 patch, opaque block, fixture 확대 |
-| scope가 빠르게 커짐 | 출시 지연 | 협업·클라우드·WYSIWYG 제외 |
+| scope가 빠르게 커짐 | 출시 지연 | 개인 스냅샷까지만 허용하고 조직·협업 서버·WYSIWYG 제외 |
 | LLM 비용과 latency | 사용성 저하 | 범위 기반 context, cache, 작은 모델/큰 모델 역할 분리 |
 | 저작권 있는 PDF 처리 | 배포·공유 문제 | 로컬 처리, PDF 자체를 서버/저장소에 업로드하지 않음 |
 | 기존 도구와 차별성 약화 | 채택 실패 | Claim Ledger와 Argument Map을 첫 화면의 중심에 배치 |
@@ -1495,9 +1499,9 @@ GitHub star 수를 핵심 제품 품질 지표로 사용하지 않는다.
 
 CodeMirror, PDF.js, 기존 LaTeX compiler를 조합한다. 제품의 고유 개발 역량은 Evidence/Argument/Mathematical Co-worker/Agent 계층에 사용한다.
 
-### 결정 2: 서버 기반 팀 권한과 영속화는 MVP에서 제외한다
+### 결정 2: 개인 클라우드는 얇게, 서버 기반 팀 권한은 MVP에서 제외한다
 
-Yjs/WebRTC를 이용한 링크 기반 공동 편집은 MVP에 포함한다. 사용자 계정, 조직 권한, audit log와 collaboration server 영속화는 핵심 편집 경험이 검증된 뒤 추가한다.
+Yjs/WebRTC를 이용한 링크 기반 공동 편집은 MVP에 포함한다. Supabase Marketplace를 통한 이메일 로그인과 RLS 개인 스냅샷은 선택형으로 제공한다. 조직 권한, audit log와 collaboration server 영속화는 핵심 편집 경험이 검증된 뒤 추가한다.
 
 ### 결정 3: 벡터 데이터베이스를 필수 구성요소로 두지 않는다
 

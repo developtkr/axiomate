@@ -3,6 +3,7 @@ import {
   BookOpenCheck,
   Check,
   ChevronDown,
+  Cloud,
   CloudOff,
   Code2,
   Columns2,
@@ -18,6 +19,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { CloudWorkspaceDialog } from "./components/CloudWorkspaceDialog";
 import { CoWorkerPanel } from "./components/CoWorkerPanel";
 import { EditorPane } from "./components/EditorPane";
 import { PaperPreview } from "./components/PaperPreview";
@@ -27,7 +29,8 @@ import { SettingsDialog } from "./components/SettingsDialog";
 import { SourceInspector } from "./components/SourceInspector";
 import { sampleEvidence, sampleProject } from "./data/sampleProject";
 import { useCollaboration } from "./hooks/useCollaboration";
-import { requestModelReview, type ProviderConfig } from "./lib/aiProvider";
+import { useCloudWorkspace } from "./hooks/useCloudWorkspace";
+import { requestManagedReview, requestModelReview, type ProviderConfig } from "./lib/aiProvider";
 import { extractPdfSource } from "./lib/pdfSource";
 import { analyzePaper, applySuggestion } from "./lib/paperAnalysis";
 import type { Evidence, PaperProject, ProjectFile, ResearchSource, ReviewRun, StyleProfile, Suggestion } from "./types";
@@ -65,6 +68,8 @@ export function App() {
   const [pdfDataUrl, setPdfDataUrl] = useState<string>();
   const [toast, setToast] = useState("Demo project loaded · Local analysis mode");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cloudOpen, setCloudOpen] = useState(false);
+  const [activeCloudId, setActiveCloudId] = useState<string>();
   const [providerConfig, setProviderConfig] = useState<ProviderConfig>();
   const [modelSuggestions, setModelSuggestions] = useState<Suggestion[]>([]);
   const [reviewRuns, setReviewRuns] = useState<ReviewRun[]>([]);
@@ -78,6 +83,7 @@ export function App() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
+  const cloud = useCloudWorkspace();
 
   const currentFile = project.files.find((file) => file.path === activeFile) ?? project.files[0];
   const mainFile = project.files.find((file) => file.path === project.mainFile) ?? currentFile;
@@ -123,6 +129,7 @@ export function App() {
       if (opened) {
         setProject(opened);
         setActiveFile(opened.mainFile);
+        setActiveCloudId(undefined);
         setDismissed([]);
         setPdfDataUrl(undefined);
         setToast(`Opened ${opened.name} · Files stay on this device`);
@@ -150,6 +157,7 @@ export function App() {
     const name = imported[0].path.split("/")[0] || "local-paper";
     setProject({ name, mainFile: main, files: imported });
     setActiveFile(main);
+    setActiveCloudId(undefined);
     setDismissed([]);
     setPdfDataUrl(undefined);
     setToast(`Imported ${imported.length} files · Browser-local session`);
@@ -274,6 +282,21 @@ export function App() {
       }
       return;
     }
+    if (cloud.session && mainFile) {
+      try {
+        const managed = await requestManagedReview(cloud.session.access_token, mainFile.path, mainFile.content, styleProfile);
+        setModelSuggestions(managed.suggestions.map((suggestion) => ({ ...suggestion, id: `model-${suggestion.id}` })));
+        setDismissed([]);
+        setToast(`Managed review complete · ${managed.suggestions.length} validated findings`);
+        recordRun({ kind: "model-review", label: "Axiomate managed review", provider: managed.model, findingCount: managed.suggestions.length, status: managed.suggestions.length ? "findings" : "passed" });
+      } catch (error) {
+        setToast(error instanceof Error ? error.message : "Managed review failed");
+        recordRun({ kind: "model-review", label: "Axiomate managed review", provider: "Vercel AI Gateway", findingCount: 0, status: "failed" });
+      } finally {
+        setIsReviewing(false);
+      }
+      return;
+    }
     window.setTimeout(() => {
       setDismissed([]);
       setIsReviewing(false);
@@ -291,6 +314,7 @@ export function App() {
     setResearchSources([]);
     setSelectedSource(undefined);
     setReviewRuns([]);
+    setActiveCloudId(undefined);
     setToast("Demo project reset");
   }
 
@@ -320,13 +344,16 @@ export function App() {
         </div>
         <div className="document-status">
           <span>{project.name}</span><span>/</span><strong>{activeFile}</strong>
-          <div className="saved-state"><Check size={12} /> Local-first</div>
+          <div className="saved-state"><Check size={12} /> {activeCloudId ? "Cloud snapshot" : "Local-first"}</div>
         </div>
         <div className="topbar-actions">
           <button onClick={resetDemo} title="Reset demo"><RotateCcw size={15} /></button>
           <button onClick={() => void saveFile()} title="Save file"><Save size={15} /></button>
           <a href={githubUrl} target="_blank" rel="noreferrer" title="View source on GitHub"><Github size={15} /></a>
           <button title="Settings" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button>
+          <button className={`cloud-button ${cloud.session ? "active" : ""}`} title="Cloud workspace" onClick={() => setCloudOpen(true)}>
+            <Cloud size={15} />
+          </button>
           <button className={`share-button ${collaborationRoom ? "active" : ""}`} onClick={() => void shareProject()} title="Copy live editing link">
             <Share2 size={14} />
             {collaborationRoom ? `${Math.max(collaboration.participants.length, 1)} live` : "Share"}
@@ -385,7 +412,7 @@ export function App() {
           onDismiss={(suggestion) => setDismissed((previous) => [...previous, suggestion.id])}
           onRunReview={() => void runReview()}
           isReviewing={isReviewing}
-          providerLabel={providerConfig ? providerConfig.model : "Local analysis"}
+          providerLabel={providerConfig?.model ?? (cloud.session ? "Axiomate AI" : "Local analysis")}
           runs={reviewRuns}
         />
       </main>
@@ -404,6 +431,37 @@ export function App() {
         />
       )}
 
+      {cloudOpen && (
+        <CloudWorkspaceDialog
+          configured={cloud.configured}
+          session={cloud.session}
+          project={project}
+          evidence={evidence}
+          styleProfile={styleProfile}
+          activeCloudId={activeCloudId}
+          onClose={() => setCloudOpen(false)}
+          onSignIn={cloud.signIn}
+          onSignOut={cloud.signOut}
+          onList={cloud.listProjects}
+          onSave={cloud.saveProject}
+          onSaved={(saved) => {
+            setActiveCloudId(saved.id);
+            setToast(`Saved ${saved.name} to your cloud workspace`);
+          }}
+          onOpen={(saved) => {
+            setProject(saved.snapshot);
+            setActiveFile(saved.snapshot.mainFile);
+            setEvidence(saved.evidence);
+            setStyleProfile(saved.style_profile);
+            setActiveCloudId(saved.id);
+            setDismissed([]);
+            setPdfDataUrl(undefined);
+            setCloudOpen(false);
+            setToast(`Opened ${saved.name} from your cloud workspace`);
+          }}
+        />
+      )}
+
       {selectedSource && (
         <SourceInspector
           source={selectedSource}
@@ -415,8 +473,8 @@ export function App() {
 
       <footer className="statusbar">
         <div>
-          {collaborationRoom ? <Users size={12} /> : <CloudOff size={12} />}
-          {collaborationRoom ? `Live room · ${collaboration.status}` : "Files remain local"}
+          {collaborationRoom ? <Users size={12} /> : cloud.session ? <Cloud size={12} /> : <CloudOff size={12} />}
+          {collaborationRoom ? `Live room · ${collaboration.status}` : cloud.session ? "Cloud account · manual snapshots" : "Files remain local"}
           <span>·</span> {window.axiomate ? "Desktop runtime" : "Web app"}
         </div>
         <div className="toast-message">{toast}</div>
