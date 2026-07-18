@@ -358,12 +358,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--mint); outline-
 .cloud-project-list { border-top: 1px solid var(--border); padding-top: 12px; }
 .cloud-project-list > small { color: #547568; font: 500 7px/1 "DM Mono", monospace; letter-spacing: .6px; }
 .cloud-project-list > p { color: #616c71; font-size: 9px; }
-.cloud-project-list > button { width: 100%; min-height: 46px; margin-top: 7px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 5px; background: #0f1315; color: #768188; display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
-.cloud-project-list > button:hover { border-color: #3b5048; background: #131a17; }
-.cloud-project-list > button > span:first-child { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cloud-project-row { min-height: 46px; margin-top: 7px; border: 1px solid var(--border); border-radius: 5px; background: #0f1315; display: grid; grid-template-columns: minmax(0, 1fr) 31px; overflow: hidden; }
+.cloud-project-row:hover { border-color: #3b5048; background: #131a17; }
+.cloud-project-row > button:first-child { min-width: 0; padding: 7px 9px; border: 0; background: transparent; color: #768188; display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
+.cloud-project-row > button:first-child > span:first-child { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .cloud-project-list strong { color: #b9c3c7; font-size: 10px; }
 .cloud-project-list small { color: #566168; font: 400 7px/1 "DM Mono", monospace; }
-.cloud-project-list > button > span:last-child { color: var(--mint); font: 500 7px/1 "DM Mono", monospace; }
+.cloud-project-row > button:first-child > span:last-child { color: var(--mint); font: 500 7px/1 "DM Mono", monospace; }
+.cloud-delete-button { border: 0; border-left: 1px solid var(--border); background: transparent; color: #616b70; display: grid; place-items: center; cursor: pointer; }
+.cloud-delete-button:hover { color: var(--red); background: #261719; }
 .cloud-message { margin-top: 12px; padding: 8px 9px; border: 1px solid #29463b; border-radius: 5px; background: #121f1a; color: #83aa9b; font-size: 9px; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }

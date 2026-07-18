@@ -22,7 +22,7 @@ AI can make scientific prose fluent without making it true. Axiomate is designed
 - **Local-first workspace** keeps `.tex`, `.bib`, figures, and Git as the source of truth.
 - **Live collaboration** syncs CodeMirror edits and collaborator presence through an encrypted Yjs/WebRTC room link.
 - **Bring your own model** supports OpenAI, OpenRouter, and custom OpenAI-compatible gateways.
-- **Optional cloud workspace** adds passwordless email login and explicit, owner-isolated LaTeX snapshots while keeping source PDFs local.
+- **Optional cloud workspace** uses Clerk sign-in and owner-isolated Neon snapshots while keeping source PDFs local.
 - **Managed review** routes signed-in reviews through an authenticated Vercel Function and Vercel AI Gateway when no BYOK provider is selected.
 - **Inspectable AI** records review, patch, and compile runs without storing the LLM key, and applies project writing profiles to local and model review.
 
@@ -39,7 +39,7 @@ The deployed web app opens a complete sample paper and runs deterministic analys
 7. inspect the paper-wide argument map and review run history;
 8. configure a venue, voice, English variant, and phrases to avoid;
 9. optionally connect an OpenAI-compatible model for a second-pass review;
-10. copy a live editing link and co-edit the main LaTeX file from another browser.
+10. copy a live editing link and co-edit the main LaTeX file from another browser;
 11. optionally sign in and save or reopen a private project snapshot.
 
 The desktop runtime additionally opens and saves local folders and compiles a full PDF with `latexmk` while shell escape is disabled.
@@ -63,7 +63,26 @@ Select **Share** to create and copy a secret room link. Opening the link in anot
 
 ### Optional cloud workspace
 
-The cloud button supports passwordless email login and manual project snapshots when the Supabase Vercel Marketplace integration is configured. Row Level Security restricts each snapshot to its owner. LaTeX files, evidence links, and the writing profile are included; imported source PDF bytes and extracted text remain local. This is personal backup/open functionality, not yet a team role or durable collaboration server.
+The cloud button uses Clerk for sign-in and Neon Postgres for manual project snapshots. Every Function verifies the Clerk session and adds the verified Clerk user ID to its Neon query; the browser cannot choose an owner ID. LaTeX files, evidence links, and the writing profile are included. Imported source PDF bytes and extracted full text remain local. This is personal save/open/delete functionality, not yet a team role or durable collaboration server.
+
+### Configure Clerk and Neon
+
+The app stays in Guest/Local-only mode when these services are not configured.
+
+1. Create a Clerk application and copy its publishable and secret keys.
+2. Provision Neon through the Vercel Marketplace and connect it to the Axiomate Vercel project.
+3. Configure `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `DATABASE_URL` for Preview and Production. The Vercel Marketplace's `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is mapped to the Vite key automatically. `CLERK_JWT_KEY` is optional and enables networkless session verification.
+4. Add `http://localhost:5173` and `https://axiomate-delta.vercel.app` as allowed application origins in Clerk. Add any stable custom Preview origin you intend to use.
+5. Pull the development variables, then apply the single schema migration:
+
+```bash
+vercel env pull .env.local
+psql "$DATABASE_URL" -f neon/migrations/001_projects.sql
+```
+
+`DATABASE_URL`, `CLERK_SECRET_KEY`, and `CLERK_JWT_KEY` are server-only values and must never use the `VITE_` prefix. The managed review path additionally uses Vercel AI Gateway and the optional `AXIOMATE_GATEWAY_MODEL` setting. Configure an AI Gateway budget before enabling it for external users.
+
+Clerk requires a custom domain for its production instance. Until one is connected to Vercel and configured in Clerk, use Clerk's development instance only for local and Preview testing; Guest mode remains available on the production `vercel.app` URL.
 
 ## Run locally
 
@@ -111,7 +130,7 @@ npm run build
 - File reads and writes are constrained to the selected project root.
 - Model suggestions are untrusted until schema validation and user approval.
 - Shared edits use Yjs CRDT updates; the alpha room link acts as the collaboration secret.
-- Cloud snapshots are explicit rather than automatic and are isolated by owner policies.
+- Cloud snapshots are explicit rather than automatic; every Neon query is scoped to the verified Clerk user ID.
 - Axiomate does not claim to prove mathematical correctness or eliminate hallucinations.
 
 See [SECURITY.md](SECURITY.md) for threat-model and reporting details.
@@ -128,12 +147,12 @@ LaTeX project
    ├── Yjs workspace ─ offline cache, presence, live editing
    │
    ├── Optional model review ─ BYOK endpoint or authenticated Vercel AI Gateway
-   ├── Optional cloud ─ email auth + owner-isolated manual snapshots
+   ├── Optional cloud ─ Clerk auth + owner-isolated Neon snapshots
    │
    └── Verified patch ─ diff → user approval → compile
 ```
 
-The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, KaTeX, Vite, Vercel Functions, and an optional Supabase Marketplace resource. The desktop shell uses Electron with a context-isolated preload bridge.
+The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, KaTeX, Vite, Vercel Functions, optional Clerk authentication, and optional Neon Postgres. The desktop shell uses Electron with a context-isolated preload bridge.
 
 ## Current alpha limitations
 

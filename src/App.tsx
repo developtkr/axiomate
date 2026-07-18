@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useAxiomateAuth } from "./auth/useAxiomateAuth";
 import { CloudWorkspaceDialog } from "./components/CloudWorkspaceDialog";
 import { CoWorkerPanel } from "./components/CoWorkerPanel";
 import { EditorPane } from "./components/EditorPane";
@@ -83,7 +84,8 @@ export function App() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
-  const cloud = useCloudWorkspace();
+  const auth = useAxiomateAuth();
+  const cloud = useCloudWorkspace({ signedIn: auth.signedIn, getToken: auth.getToken });
 
   const currentFile = project.files.find((file) => file.path === activeFile) ?? project.files[0];
   const mainFile = project.files.find((file) => file.path === project.mainFile) ?? currentFile;
@@ -282,9 +284,11 @@ export function App() {
       }
       return;
     }
-    if (cloud.session && mainFile) {
+    if (auth.signedIn && mainFile) {
       try {
-        const managed = await requestManagedReview(cloud.session.access_token, mainFile.path, mainFile.content, styleProfile);
+        const token = await auth.getToken();
+        if (!token) throw new Error("Sign in before running a managed review.");
+        const managed = await requestManagedReview(token, mainFile.path, mainFile.content, styleProfile);
         setModelSuggestions(managed.suggestions.map((suggestion) => ({ ...suggestion, id: `model-${suggestion.id}` })));
         setDismissed([]);
         setToast(`Managed review complete · ${managed.suggestions.length} validated findings`);
@@ -351,7 +355,7 @@ export function App() {
           <button onClick={() => void saveFile()} title="Save file"><Save size={15} /></button>
           <a href={githubUrl} target="_blank" rel="noreferrer" title="View source on GitHub"><Github size={15} /></a>
           <button title="Settings" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button>
-          <button className={`cloud-button ${cloud.session ? "active" : ""}`} title="Cloud workspace" onClick={() => setCloudOpen(true)}>
+          <button className={`cloud-button ${auth.signedIn ? "active" : ""}`} title="Cloud workspace" onClick={() => setCloudOpen(true)}>
             <Cloud size={15} />
           </button>
           <button className={`share-button ${collaborationRoom ? "active" : ""}`} onClick={() => void shareProject()} title="Copy live editing link">
@@ -412,7 +416,7 @@ export function App() {
           onDismiss={(suggestion) => setDismissed((previous) => [...previous, suggestion.id])}
           onRunReview={() => void runReview()}
           isReviewing={isReviewing}
-          providerLabel={providerConfig?.model ?? (cloud.session ? "Axiomate AI" : "Local analysis")}
+          providerLabel={providerConfig?.model ?? (auth.signedIn ? "Axiomate AI" : "Local analysis")}
           runs={reviewRuns}
         />
       </main>
@@ -433,17 +437,27 @@ export function App() {
 
       {cloudOpen && (
         <CloudWorkspaceDialog
-          configured={cloud.configured}
-          session={cloud.session}
+          configured={auth.configured}
+          authLoaded={auth.loaded}
+          signedIn={auth.signedIn}
+          user={auth.user}
           project={project}
           evidence={evidence}
           styleProfile={styleProfile}
           activeCloudId={activeCloudId}
           onClose={() => setCloudOpen(false)}
-          onSignIn={cloud.signIn}
-          onSignOut={cloud.signOut}
+          onSignIn={auth.signIn}
+          onSignOut={async () => {
+            await auth.signOut();
+            setActiveCloudId(undefined);
+          }}
           onList={cloud.listProjects}
+          onFetch={cloud.openProject}
           onSave={cloud.saveProject}
+          onDelete={cloud.deleteProject}
+          onDeleted={(projectId) => {
+            if (projectId === activeCloudId) setActiveCloudId(undefined);
+          }}
           onSaved={(saved) => {
             setActiveCloudId(saved.id);
             setToast(`Saved ${saved.name} to your cloud workspace`);
@@ -452,7 +466,7 @@ export function App() {
             setProject(saved.snapshot);
             setActiveFile(saved.snapshot.mainFile);
             setEvidence(saved.evidence);
-            setStyleProfile(saved.style_profile);
+            setStyleProfile(saved.styleProfile);
             setActiveCloudId(saved.id);
             setDismissed([]);
             setPdfDataUrl(undefined);
@@ -473,8 +487,8 @@ export function App() {
 
       <footer className="statusbar">
         <div>
-          {collaborationRoom ? <Users size={12} /> : cloud.session ? <Cloud size={12} /> : <CloudOff size={12} />}
-          {collaborationRoom ? `Live room · ${collaboration.status}` : cloud.session ? "Cloud account · manual snapshots" : "Files remain local"}
+          {collaborationRoom ? <Users size={12} /> : auth.signedIn ? <Cloud size={12} /> : <CloudOff size={12} />}
+          {collaborationRoom ? `Live room · ${collaboration.status}` : auth.signedIn ? "Cloud account · manual snapshots" : "Files remain local"}
           <span>·</span> {window.axiomate ? "Desktop runtime" : "Web app"}
         </div>
         <div className="toast-message">{toast}</div>
