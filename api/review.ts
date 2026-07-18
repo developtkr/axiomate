@@ -1,6 +1,6 @@
 import { generateText } from "ai";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { AuthError, requireUserId } from "./_lib/auth.js";
 
 const inputSchema = z.object({
   file: z.string().min(1).max(500),
@@ -40,21 +40,8 @@ export default {
   async fetch(request: Request) {
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseKey) return json({ error: "Cloud service is not configured" }, 503);
-
-    const authorization = request.headers.get("Authorization");
-    const accessToken = authorization?.startsWith("Bearer ") ? authorization.slice(7) : undefined;
-    if (!accessToken) return json({ error: "Sign in required" }, 401);
-
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
-    if (userError || !userData.user) return json({ error: "Invalid session" }, 401);
-
     try {
+      const userId = await requireUserId(request);
       const input = inputSchema.parse(await request.json());
       const model = process.env.AXIOMATE_GATEWAY_MODEL ?? "openai/gpt-5.5";
       const result = await generateText({
@@ -64,7 +51,7 @@ export default {
         prompt: `Style profile: ${JSON.stringify(input.styleProfile)}\nFollow it without trading precision for style.\n\nFile: ${input.file}\n\n${input.content}`,
         providerOptions: {
           gateway: {
-            user: userData.user.id,
+            user: userId,
             tags: ["feature:paper-review", `env:${process.env.VERCEL_ENV ?? "local"}`],
           },
         },
@@ -72,6 +59,7 @@ export default {
       const parsed = outputSchema.parse(JSON.parse(result.text));
       return json({ suggestions: parsed.suggestions, model });
     } catch (error) {
+      if (error instanceof AuthError) return json({ error: error.message }, error.status);
       if (error instanceof z.ZodError || error instanceof SyntaxError) {
         return json({ error: "The review response could not be validated" }, 422);
       }

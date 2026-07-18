@@ -1,99 +1,80 @@
-import { useCallback, useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { cloudConfigured, supabase } from "../lib/supabase";
+import { useCallback } from "react";
 import type { Evidence, PaperProject, StyleProfile } from "../types";
 
-export interface CloudProject {
+export interface CloudProjectSummary {
   id: string;
   name: string;
+  updatedAt: string;
+}
+
+export interface CloudProject extends CloudProjectSummary {
   snapshot: PaperProject;
   evidence: Evidence[];
-  style_profile: StyleProfile;
-  updated_at: string;
+  styleProfile: StyleProfile;
 }
 
-function cloudSnapshot(project: PaperProject): PaperProject {
-  return {
-    name: project.name,
-    mainFile: project.mainFile,
-    files: project.files,
-  };
+interface CloudWorkspaceAuth {
+  signedIn: boolean;
+  getToken(): Promise<string | null>;
 }
 
-export function useCloudWorkspace() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authReady, setAuthReady] = useState(!cloudConfigured);
+async function readResponse<T>(response: Response): Promise<T> {
+  const body = await response.json() as T & { error?: string };
+  if (!response.ok) throw new Error(body.error ?? `Cloud request failed (${response.status}).`);
+  return body;
+}
 
-  useEffect(() => {
-    if (!supabase) return;
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthReady(true);
+export function useCloudWorkspace({ signedIn, getToken }: CloudWorkspaceAuth) {
+  const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
+    const token = await getToken();
+    if (!token) throw new Error("Sign in before using the cloud workspace.");
+    const response = await fetch(path, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...init?.headers,
+      },
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setAuthReady(true);
-    });
-    return () => data.subscription.unsubscribe();
-  }, []);
+    return readResponse<T>(response);
+  }, [getToken]);
 
-  const signIn = useCallback(async (email: string) => {
-    if (!supabase) throw new Error("Cloud workspace is not configured yet.");
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    if (error) throw error;
-  }, []);
+  const listProjects = useCallback(
+    () => signedIn ? request<CloudProjectSummary[]>("/api/projects") : Promise.resolve([]),
+    [request, signedIn],
+  );
 
-  const signOut = useCallback(async () => {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  }, []);
-
-  const listProjects = useCallback(async (): Promise<CloudProject[]> => {
-    if (!supabase || !session) return [];
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id,name,snapshot,evidence,style_profile,updated_at")
-      .order("updated_at", { ascending: false });
-    if (error) throw error;
-    return (data ?? []) as CloudProject[];
-  }, [session]);
+  const openProject = useCallback(
+    (projectId: string) => request<CloudProject>(`/api/projects/${encodeURIComponent(projectId)}`),
+    [request],
+  );
 
   const saveProject = useCallback(async (
     project: PaperProject,
     evidence: Evidence[],
     styleProfile: StyleProfile,
     projectId?: string,
-  ): Promise<CloudProject> => {
-    if (!supabase || !session) throw new Error("Sign in before saving to the cloud.");
-    const payload = {
-      owner_id: session.user.id,
-      name: project.name,
-      main_file: project.mainFile,
-      snapshot: cloudSnapshot(project),
+  ): Promise<CloudProject> => request<CloudProject>(projectId ? `/api/projects/${projectId}` : "/api/projects", {
+    method: projectId ? "PUT" : "POST",
+    body: JSON.stringify({
+      project: { name: project.name, mainFile: project.mainFile, files: project.files },
       evidence,
-      style_profile: styleProfile,
-    };
-    const query = projectId
-      ? supabase.from("projects").update(payload).eq("id", projectId).eq("owner_id", session.user.id)
-      : supabase.from("projects").insert(payload);
-    const { data, error } = await query
-      .select("id,name,snapshot,evidence,style_profile,updated_at")
-      .single();
-    if (error) throw error;
-    return data as CloudProject;
-  }, [session]);
+      styleProfile,
+    }),
+  }), [request]);
 
-  return {
-    configured: cloudConfigured,
-    authReady,
-    session,
-    signIn,
-    signOut,
-    listProjects,
-    saveProject,
-  };
+  const deleteProject = useCallback(async (projectId: string) => {
+    const token = await getToken();
+    if (!token) throw new Error("Sign in before deleting a cloud project.");
+    const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const body = await response.json() as { error?: string };
+      throw new Error(body.error ?? `Cloud delete failed (${response.status}).`);
+    }
+  }, [getToken]);
+
+  return { listProjects, openProject, saveProject, deleteProject };
 }
