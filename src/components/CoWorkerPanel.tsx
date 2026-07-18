@@ -20,7 +20,9 @@ interface CoWorkerPanelProps {
   suggestions: Suggestion[];
   onApply: (suggestion: Suggestion) => void;
   onDismiss: (suggestion: Suggestion) => void;
+  onInspect: (suggestion: Suggestion) => void;
   onRunReview: () => void;
+  onOpenSettings: () => void;
   isReviewing: boolean;
   providerLabel: string;
   runs: ReviewRun[];
@@ -34,7 +36,7 @@ const categoryIcons: Record<SuggestionCategory, typeof Sigma> = {
   latex: AlertTriangle,
 };
 
-export function CoWorkerPanel({ suggestions, onApply, onDismiss, onRunReview, isReviewing, providerLabel, runs }: CoWorkerPanelProps) {
+export function CoWorkerPanel({ suggestions, onApply, onDismiss, onInspect, onRunReview, onOpenSettings, isReviewing, providerLabel, runs }: CoWorkerPanelProps) {
   const [filter, setFilter] = useState<"all" | "history" | SuggestionCategory>("all");
   const visible = filter === "all" ? suggestions : suggestions.filter((item) => item.category === filter);
 
@@ -45,7 +47,7 @@ export function CoWorkerPanel({ suggestions, onApply, onDismiss, onRunReview, is
           <span className="presence-dot" />
           <div><small>RESEARCH CO-WORKER</small><strong>Axiom</strong></div>
         </div>
-        <button className="model-button">{providerLabel} <ChevronDown size={12} /></button>
+        <button className="model-button" onClick={onOpenSettings} title="Configure model and writing profile">{providerLabel} <ChevronDown size={12} /></button>
       </header>
 
       <section className="review-callout">
@@ -113,7 +115,7 @@ export function CoWorkerPanel({ suggestions, onApply, onDismiss, onRunReview, is
                     Apply patch <ArrowRight size={13} />
                   </button>
                 ) : (
-                  <button className="inspect-button"><Lightbulb size={13} /> Inspect</button>
+                  <button className="inspect-button" onClick={() => onInspect(suggestion)}><Lightbulb size={13} /> Inspect source</button>
                 )}
                 <button className="dismiss-button" onClick={() => onDismiss(suggestion)} title="Dismiss suggestion">
                   <X size={14} />

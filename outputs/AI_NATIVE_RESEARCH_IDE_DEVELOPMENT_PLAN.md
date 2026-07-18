@@ -8,8 +8,8 @@
 
 공동 편집과 팀 공유 요구를 반영해 주 제품을 local-first 웹서비스로 전환한다. Electron은 별도 제품이 아니라 동일한 React 앱에 로컬 파일 저장과 `latexmk` 컴파일 권한을 추가하는 선택형 desktop shell로 유지한다.
 
-- 웹: 즉시 접속, 링크 공유, Yjs 기반 실시간 공동 편집, IndexedDB offline cache
-- 데스크톱: 웹 기능 + 로컬 폴더 직접 접근 + 전체 LaTeX PDF 컴파일
+- 웹: 즉시 접속, 링크 공유, Yjs 기반 실시간 공동 편집, IndexedDB workspace 저장, 인증형 Vercel Sandbox PDF 컴파일
+- 데스크톱: 웹 기능 + 로컬 폴더 직접 접근 + 업로드 없는 LaTeX PDF 컴파일
 - Alpha 협업: secret room link + Yjs/WebRTC + presence/remote cursor
 - Team 협업: 인증, owner/editor/commenter/viewer 역할, Hocuspocus WebSocket, Yjs binary persistence
 - 배포: Vercel 웹 프런트엔드. 초기 협업은 P2P이며 서버 영속화 단계에서 별도 collaboration service 또는 Vercel WebSocket 계층을 추가
@@ -27,7 +27,8 @@ AI provider는 OpenAI-compatible adapter로 통일하며 다음 설정을 프로
 
 현재 `Axiomate` 공개 저장소와 Vercel 웹 alpha에는 다음 범위가 구현되어 있다.
 
-- CodeMirror LaTeX 편집, KaTeX semantic preview, Electron 로컬 폴더 열기/저장 및 제한된 `latexmk` 컴파일
+- CodeMirror LaTeX 편집, KaTeX semantic preview, 브라우저 IndexedDB 자동/명시 저장, Electron 로컬 폴더 열기/저장
+- Clerk 인증 후 고정 TeX snapshot에서 실행하는 네트워크 차단형 Vercel Sandbox `latexmk` PDF 컴파일, Electron 로컬 컴파일
 - evidence/logic/math/writing 로컬 검사, 승인형 patch, claim ledger와 프로젝트 symbol 검사
 - PDF.js 기반 로컬 PDF page text 추출, exact passage 선택과 claim-evidence 연결
 - question → gap → contribution → method → experiment → result → limitation → conclusion argument map

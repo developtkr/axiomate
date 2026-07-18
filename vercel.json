@@ -5,6 +5,9 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "functions": {
+    "api/compile.ts": {
+      "maxDuration": 120
+    },
     "api/review.ts": {
       "maxDuration": 60
     }

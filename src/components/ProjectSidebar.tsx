@@ -24,6 +24,7 @@ interface ProjectSidebarProps {
   evidence: Evidence[];
   researchSources: ResearchSource[];
   onSelectFile: (path: string) => void;
+  onNavigate: (path: string, line: number) => void;
   onSelectTab: (tab: SidebarTab) => void;
   onOpenProject: () => void;
   onImportPdf: () => void;
@@ -52,6 +53,7 @@ export function ProjectSidebar({
   evidence,
   researchSources,
   onSelectFile,
+  onNavigate,
   onSelectTab,
   onOpenProject,
   onImportPdf,
@@ -105,7 +107,7 @@ export function ProjectSidebar({
         {activeTab === "outline" && (
           <div className="outline-list">
             {analysis.sections.map((section) => (
-              <button className={section.level === 2 ? "level-two" : ""} key={`${section.title}-${section.line}`}>
+              <button className={section.level === 2 ? "level-two" : ""} key={`${section.title}-${section.line}`} onClick={() => onNavigate(project.mainFile, section.line)}>
                 <ChevronRight size={12} />
                 <span>{section.title}</span>
                 <em>{section.line}</em>

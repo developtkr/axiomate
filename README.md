@@ -20,6 +20,7 @@ AI can make scientific prose fluent without making it true. Axiomate is designed
 - **Mathematical co-worker** tracks symbols and proactively flags notation, definition, sign, and equation–text mismatches.
 - **Verified patches** show the reason, affected locations, and exact diff before changing LaTeX.
 - **Local-first workspace** keeps `.tex`, `.bib`, figures, and Git as the source of truth.
+- **Durable browser workspace** restores text projects, evidence links, and writing preferences from IndexedDB and supports explicit save or `Ctrl/⌘S`.
 - **Live collaboration** syncs CodeMirror edits and collaborator presence through an encrypted Yjs/WebRTC room link.
 - **Bring your own model** supports OpenAI, OpenRouter, and custom OpenAI-compatible gateways.
 - **Optional cloud workspace** uses Clerk sign-in and owner-isolated Neon snapshots while keeping source PDFs local.
@@ -41,8 +42,9 @@ The deployed web app opens a complete sample paper and runs deterministic analys
 9. optionally connect an OpenAI-compatible model for a second-pass review;
 10. copy a live editing link and co-edit the main LaTeX file from another browser;
 11. optionally sign in and save or reopen a private project snapshot.
+12. sign in and compile the imported text project into a real PDF in an isolated Vercel Sandbox.
 
-The desktop runtime additionally opens and saves local folders and compiles a full PDF with `latexmk` while shell escape is disabled.
+The semantic preview updates immediately while you write. Signed-in web users can run a real `latexmk` PDF compile in an isolated Vercel Sandbox; the desktop runtime additionally opens and saves local folders and compiles without uploading the project.
 
 ### Connect OpenRouter or a custom gateway
 
@@ -81,6 +83,16 @@ psql "$DATABASE_URL" -f neon/migrations/001_projects.sql
 ```
 
 `DATABASE_URL`, `CLERK_SECRET_KEY`, and `CLERK_JWT_KEY` are server-only values and must never use the `VITE_` prefix. The managed review path additionally uses Vercel AI Gateway and the optional `AXIOMATE_GATEWAY_MODEL` setting. Configure an AI Gateway budget before enabling it for external users.
+
+To enable web PDF compilation, create the reusable TeX snapshot once and add the printed value as `AXIOMATE_TEX_SNAPSHOT_ID` in Vercel Development, Preview, and Production:
+
+```bash
+vercel env pull .env.local
+npm run sandbox:prepare
+vercel env add AXIOMATE_TEX_SNAPSHOT_ID
+```
+
+The compile Function requires a verified Clerk session, disables network access and shell escape, limits input/output size and execution time, and destroys each isolated Sandbox after the request.
 
 Clerk requires a custom domain for its production instance. Until one is connected to Vercel and configured in Clerk, use Clerk's development instance only for local and Preview testing; Guest mode remains available on the production `vercel.app` URL.
 
@@ -127,6 +139,7 @@ npm run build
 - Deterministic checks run locally.
 - Source PDFs are parsed locally and are not sent to the configured model gateway.
 - The desktop compiler disables shell escape and limits compile time.
+- The web compiler runs only for authenticated users inside an isolated Vercel Sandbox with network access and shell escape disabled.
 - File reads and writes are constrained to the selected project root.
 - Model suggestions are untrusted until schema validation and user approval.
 - Shared edits use Yjs CRDT updates; the alpha room link acts as the collaboration secret.
@@ -149,6 +162,7 @@ LaTeX project
    ├── Optional model review ─ BYOK endpoint or authenticated Vercel AI Gateway
    ├── Optional cloud ─ Clerk auth + owner-isolated Neon snapshots
    │
+   ├── Web compile ─ Clerk auth → isolated Vercel Sandbox → PDF
    └── Verified patch ─ diff → user approval → compile
 ```
 
@@ -157,7 +171,8 @@ The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, 
 ## Current alpha limitations
 
 - The LaTeX parser is intentionally conservative and does not cover every macro package.
-- The web preview is semantic HTML/KaTeX, not a complete TeX engine.
+- The live web preview is semantic HTML/KaTeX; signed-in users can explicitly compile a real PDF. The alpha compiler supports imported text files but not binary figures yet.
+- The reusable web compiler image currently uses the TeX packages available in its Amazon Linux snapshot; unusual packages may need to be added to the snapshot script.
 - PDF import currently supports text-based PDFs; scanned documents require OCR before import.
 - Passage attachment records provenance but does not yet perform automatic semantic entailment grading.
 - Symbolic equivalence and numerical sanity checks are not yet formal proof systems.
