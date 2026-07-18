@@ -6,6 +6,8 @@ Axiomate is an open-source, local-first research IDE for LaTeX papers. It review
 
 > Alpha software. Keep your paper in Git and review every proposed patch.
 
+**Live alpha:** <https://axiomate-delta.vercel.app>
+
 ## Why Axiomate
 
 AI can make scientific prose fluent without making it true. Axiomate is designed around a stricter rule: an unverified claim must never look verified.
