@@ -7,6 +7,11 @@ export interface ProviderConfig {
   model: string;
 }
 
+export interface ManagedReviewResult {
+  suggestions: Suggestion[];
+  model: string;
+}
+
 const suggestionSchema = z.object({
   suggestions: z.array(z.object({
     id: z.string(),
@@ -69,4 +74,27 @@ export async function requestModelReview(
   const raw = body.choices?.[0]?.message?.content;
   if (!raw) throw new Error("Model returned no review content.");
   return suggestionSchema.parse(JSON.parse(raw)).suggestions;
+}
+
+export async function requestManagedReview(
+  accessToken: string,
+  file: string,
+  content: string,
+  styleProfile: StyleProfile,
+  signal?: AbortSignal,
+): Promise<ManagedReviewResult> {
+  const response = await fetch("/api/review", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ file, content, styleProfile }),
+    signal,
+  });
+  const body = await response.json() as { suggestions?: unknown; model?: string; error?: string };
+  if (!response.ok) throw new Error(body.error ?? `Managed review failed (${response.status}).`);
+  const parsed = suggestionSchema.parse({ suggestions: body.suggestions });
+  if (!body.model) throw new Error("Managed review returned no model information.");
+  return { suggestions: parsed.suggestions, model: body.model };
 }

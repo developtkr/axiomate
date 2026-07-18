@@ -95,6 +95,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--mint); outline-
 .topbar-actions .compile-button:hover { background: var(--mint-strong); color: #081710; }
 .topbar-actions .share-button { width: auto; padding: 0 9px; display: flex; gap: 5px; font-size: 9px; border: 1px solid var(--border); }
 .topbar-actions .share-button.active { color: var(--mint); border-color: #365e50; background: #14231d; }
+.topbar-actions .cloud-button.active { color: var(--mint); background: #14231d; }
 .compile-button:disabled { opacity: .7; cursor: wait; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -339,6 +340,31 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--mint); outline-
 .save-profile-button { border: 1px solid #343d42; background: #181d20; color: #a8b1b6; }
 .save-settings-button { border: 0; color: #0a1b14; background: var(--mint); font-weight: 700; }
 .save-settings-button:disabled { opacity: .35; cursor: not-allowed; }
+
+.cloud-dialog { width: min(480px, calc(100vw - 32px)); }
+.cloud-empty { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #4e7567; }
+.cloud-empty strong { margin-top: 10px; color: #aebbb6; font-size: 12px; }
+.cloud-empty p { max-width: 320px; margin: 6px 0 0; color: #68746f; font-size: 9px; line-height: 1.5; }
+.cloud-auth > p { color: #78838a; font-size: 10px; line-height: 1.5; }
+.cloud-auth .save-settings-button { margin-top: 12px; height: 32px; border: 0; border-radius: 5px; padding: 0 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.cloud-account { display: flex; align-items: center; justify-content: space-between; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: #0e1213; }
+.cloud-account > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cloud-account small { color: #547568; font: 500 7px/1 "DM Mono", monospace; }
+.cloud-account strong { color: #b7c1c5; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cloud-account button { width: auto !important; height: 27px !important; padding: 0 8px; border: 1px solid var(--border) !important; display: flex !important; gap: 5px; font-size: 8px; }
+.cloud-save-button { width: 100%; height: 36px; margin-top: 10px; border: 0; border-radius: 5px; background: var(--mint); color: #0a1b14; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 10px; font-weight: 700; cursor: pointer; }
+.cloud-save-button:disabled { opacity: .55; cursor: wait; }
+.cloud-privacy { margin: 9px 1px 14px !important; color: #65716c !important; font-size: 8px !important; }
+.cloud-project-list { border-top: 1px solid var(--border); padding-top: 12px; }
+.cloud-project-list > small { color: #547568; font: 500 7px/1 "DM Mono", monospace; letter-spacing: .6px; }
+.cloud-project-list > p { color: #616c71; font-size: 9px; }
+.cloud-project-list > button { width: 100%; min-height: 46px; margin-top: 7px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 5px; background: #0f1315; color: #768188; display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
+.cloud-project-list > button:hover { border-color: #3b5048; background: #131a17; }
+.cloud-project-list > button > span:first-child { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cloud-project-list strong { color: #b9c3c7; font-size: 10px; }
+.cloud-project-list small { color: #566168; font: 400 7px/1 "DM Mono", monospace; }
+.cloud-project-list > button > span:last-child { color: var(--mint); font: 500 7px/1 "DM Mono", monospace; }
+.cloud-message { margin-top: 12px; padding: 8px 9px; border: 1px solid #29463b; border-radius: 5px; background: #121f1a; color: #83aa9b; font-size: 9px; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -22,6 +22,8 @@ AI can make scientific prose fluent without making it true. Axiomate is designed
 - **Local-first workspace** keeps `.tex`, `.bib`, figures, and Git as the source of truth.
 - **Live collaboration** syncs CodeMirror edits and collaborator presence through an encrypted Yjs/WebRTC room link.
 - **Bring your own model** supports OpenAI, OpenRouter, and custom OpenAI-compatible gateways.
+- **Optional cloud workspace** adds passwordless email login and explicit, owner-isolated LaTeX snapshots while keeping source PDFs local.
+- **Managed review** routes signed-in reviews through an authenticated Vercel Function and Vercel AI Gateway when no BYOK provider is selected.
 - **Inspectable AI** records review, patch, and compile runs without storing the LLM key, and applies project writing profiles to local and model review.
 
 ## Alpha demo
@@ -38,6 +40,7 @@ The deployed web app opens a complete sample paper and runs deterministic analys
 8. configure a venue, voice, English variant, and phrases to avoid;
 9. optionally connect an OpenAI-compatible model for a second-pass review;
 10. copy a live editing link and co-edit the main LaTeX file from another browser.
+11. optionally sign in and save or reopen a private project snapshot.
 
 The desktop runtime additionally opens and saves local folders and compiles a full PDF with `latexmk` while shell escape is disabled.
 
@@ -57,6 +60,10 @@ Open **Sources**, select **Add source PDF**, and choose a text-based PDF. Axioma
 ### Share and co-edit
 
 Select **Share** to create and copy a secret room link. Opening the link in another browser synchronizes the main LaTeX document, presence, and remote cursors. The alpha uses Yjs with WebRTC and browser IndexedDB, so the creator should stay online while a new collaborator joins. Anyone with the link can edit; account-based roles and durable server persistence are planned before team production use.
+
+### Optional cloud workspace
+
+The cloud button supports passwordless email login and manual project snapshots when the Supabase Vercel Marketplace integration is configured. Row Level Security restricts each snapshot to its owner. LaTeX files, evidence links, and the writing profile are included; imported source PDF bytes and extracted text remain local. This is personal backup/open functionality, not yet a team role or durable collaboration server.
 
 ## Run locally
 
@@ -104,6 +111,7 @@ npm run build
 - File reads and writes are constrained to the selected project root.
 - Model suggestions are untrusted until schema validation and user approval.
 - Shared edits use Yjs CRDT updates; the alpha room link acts as the collaboration secret.
+- Cloud snapshots are explicit rather than automatic and are isolated by owner policies.
 - Axiomate does not claim to prove mathematical correctness or eliminate hallucinations.
 
 See [SECURITY.md](SECURITY.md) for threat-model and reporting details.
@@ -119,12 +127,13 @@ LaTeX project
    ├── PDF.js sources ─ page text → passage → claim link
    ├── Yjs workspace ─ offline cache, presence, live editing
    │
-   ├── Optional model review ─ OpenAI-compatible endpoint
+   ├── Optional model review ─ BYOK endpoint or authenticated Vercel AI Gateway
+   ├── Optional cloud ─ email auth + owner-isolated manual snapshots
    │
    └── Verified patch ─ diff → user approval → compile
 ```
 
-The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, KaTeX, and Vite. The desktop shell uses Electron with a context-isolated preload bridge.
+The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, KaTeX, Vite, Vercel Functions, and an optional Supabase Marketplace resource. The desktop shell uses Electron with a context-isolated preload bridge.
 
 ## Current alpha limitations
 
@@ -133,7 +142,7 @@ The web app is built with React, TypeScript, CodeMirror 6, PDF.js, Yjs, WebRTC, 
 - PDF import currently supports text-based PDFs; scanned documents require OCR before import.
 - Passage attachment records provenance but does not yet perform automatic semantic entailment grading.
 - Symbolic equivalence and numerical sanity checks are not yet formal proof systems.
-- Account-based team roles, server-side document retention, and shared PDF storage are deliberately out of the alpha scope; the room link is the alpha access secret.
+- Account-based team roles, durable collaboration-server retention, and shared PDF storage are deliberately out of the alpha scope; the room link remains the collaboration access secret.
 
 The detailed product and implementation plan is available in [`outputs/AI_NATIVE_RESEARCH_IDE_DEVELOPMENT_PLAN.md`](outputs/AI_NATIVE_RESEARCH_IDE_DEVELOPMENT_PLAN.md).
 
