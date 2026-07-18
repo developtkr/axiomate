@@ -23,6 +23,9 @@ interface EditorPaneProps {
   content: string;
   fileName: string;
   onChange: (content: string) => void;
+  onSave: () => void;
+  focusLine?: number;
+  focusRequestId?: number;
   collaboration?: CollaborationBinding;
 }
 
@@ -37,16 +40,18 @@ const axiomateTheme = EditorView.theme({
   ".cm-content": { padding: "18px 0 60px" },
 });
 
-export function EditorPane({ content, fileName, onChange, collaboration }: EditorPaneProps) {
+export function EditorPane({ content, fileName, onChange, onSave, focusLine, focusRequestId, collaboration }: EditorPaneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const changeRef = useRef(onChange);
+  const saveRef = useRef(onSave);
   const contentRef = useRef(content);
   contentRef.current = content;
 
   useEffect(() => {
     changeRef.current = onChange;
-  }, [onChange]);
+    saveRef.current = onSave;
+  }, [onChange, onSave]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -64,7 +69,12 @@ export function EditorPane({ content, fileName, onChange, collaboration }: Edito
         rectangularSelection(),
         crosshairCursor(),
         highlightActiveLine(),
-        keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+        keymap.of([
+          { key: "Mod-s", preventDefault: true, run: () => { saveRef.current(); return true; } },
+          ...defaultKeymap,
+          ...historyKeymap,
+          indentWithTab,
+        ]),
         StreamLanguage.define(stex),
         oneDark,
         axiomateTheme,
@@ -95,6 +105,17 @@ export function EditorPane({ content, fileName, onChange, collaboration }: Edito
     if (current === content) return;
     view.dispatch({ changes: { from: 0, to: current.length, insert: content } });
   }, [content]);
+
+  useEffect(() => {
+    const editor = viewRef.current;
+    if (!editor || !focusLine) return;
+    const line = editor.state.doc.line(Math.min(Math.max(focusLine, 1), editor.state.doc.lines));
+    editor.dispatch({
+      selection: { anchor: line.from },
+      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+    });
+    editor.focus();
+  }, [focusLine, focusRequestId]);
 
   return <div className="editor-host" ref={hostRef} aria-label={`${fileName} LaTeX editor`} />;
 }

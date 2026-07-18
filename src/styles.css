@@ -215,6 +215,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--mint); outline-
 .view-switcher button.active { color: #d6dddf; background: #202529; }
 .trust-button { justify-self: end; border: 0; background: transparent; color: #718078; display: flex; align-items: center; gap: 5px; font-size: 8px; cursor: pointer; }
 .trust-button svg { color: var(--mint); }
+.trust-control { position: relative; justify-self: end; }
+.trust-popover { position: absolute; z-index: 8; top: 29px; right: 0; width: 260px; padding: 12px; border: 1px solid #345247; border-radius: 6px; background: #121917; box-shadow: 0 14px 36px rgba(0,0,0,.38); }
+.trust-popover strong { display: block; color: #c7d8d1; font-size: 10px; }
+.trust-popover p { margin: 6px 0 10px; color: #778780; font-size: 9px; line-height: 1.45; }
+.trust-popover button { height: 25px; border: 1px solid #345b4c; border-radius: 4px; background: #183027; color: var(--mint); padding: 0 8px; font-size: 8px; cursor: pointer; }
 
 .editor-preview-grid { min-height: 0; display: grid; }
 .editor-preview-grid.view-split { grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr); }
