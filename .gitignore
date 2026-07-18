@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.vercel/
+.DS_Store
+*.log
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
